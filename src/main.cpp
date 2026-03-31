@@ -1,9 +1,6 @@
 #include <quartz/codegen/bindings.hpp>
 #include <quartz/core/filesys.hpp>
 #include <quartz/core/timer.hpp>
-#include <cppast/libclang_parser.hpp>
-#include <cppast/cpp_entity_index.hpp>
-#include <cppast/cpp_file.hpp>
 #include <fstream>
 #include <filesystem>
 #include <fmt/base.h>

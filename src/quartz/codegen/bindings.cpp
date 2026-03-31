@@ -22,11 +22,9 @@ std::string make_hpp(const std::string& class_name, const std::string& ns)
 namespace quartz
 {{
 
-class {class_name}Bindings
+struct {class_name}Bindings
 {{
-public:
     {class_name}Bindings();
-    ~{class_name}Bindings() = default;
 }};
 
 // queued bindings at static initialization time
@@ -45,11 +43,9 @@ namespace quartz
 namespace {ns}
 {{
 
-class {class_name}Bindings
+struct {class_name}Bindings
 {{
-public:
     {class_name}Bindings();
-    ~{class_name}Bindings() = default;
 }};
 
 // queued bindings at static initialization time

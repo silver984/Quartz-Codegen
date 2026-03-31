@@ -1,10 +1,19 @@
 #include <quartz/codegen/bindings.hpp>
 #include <fmt/format.h>
+#include <filesystem>
+#include <string>
+#include <fstream>
+#include <stdexcept>
+#include <sstream>
+#include <vector>
+#include <cstdint>
 
 namespace quartz
 {
+namespace bindings
+{
 
-std::string bindings_decl(const std::string& class_name, const std::string& ns)
+std::string make_hpp(const std::string& class_name, const std::string& ns)
 {
     if (ns.empty())
     {
@@ -13,20 +22,20 @@ std::string bindings_decl(const std::string& class_name, const std::string& ns)
 namespace quartz
 {{
 
-class {class}Bindings
+class {class_name}Bindings
 {{
 public:
-    {class}Bindings();
-    ~{class}Bindings() = default;
+    {class_name}Bindings();
+    ~{class_name}Bindings() = default;
 }};
 
 // queued bindings at static initialization time
-static const {class}Bindings s_{class};
+static const {class_name}Bindings s_{class_name};
 
 }} // quartz)";
 
         return fmt::format(fmt::runtime(tmpl),
-                           fmt::arg("class", class_name));
+                           fmt::arg("class_name", class_name));
     }
 
     const std::string namespaced_tmpl = R"(#pragma once
@@ -36,22 +45,23 @@ namespace quartz
 namespace {ns}
 {{
 
-class {class}Bindings
+class {class_name}Bindings
 {{
 public:
-    {class}Bindings();
-    ~{class}Bindings() = default;
+    {class_name}Bindings();
+    ~{class_name}Bindings() = default;
 }};
 
 // queued bindings at static initialization time
-static const {class}Bindings s_{class};
+static const {class_name}Bindings s_{class_name};
 
 }} // {ns}
 }} // quartz)";
 
     return fmt::format(fmt::runtime(namespaced_tmpl),
                        fmt::arg("ns", ns),
-                       fmt::arg("class", class_name));
+                       fmt::arg("class_name", class_name));
 }
 
-} // namespace quartz
+} // bindings
+} // quartz

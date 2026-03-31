@@ -3,7 +3,10 @@
 
 namespace quartz
 {
+namespace bindings
+{
 
-std::string bindings_decl(const std::string& class_name, const std::string& ns = "");
+std::string make_hpp(const std::string& class_name, const std::string& ns = "");
 
-}
+} // bindings
+} // quartz

@@ -1,6 +1,9 @@
 #include <quartz/codegen/bindings.hpp>
-#include <quartz/core/headers.hpp>
+#include <quartz/core/filesys.hpp>
 #include <quartz/core/timer.hpp>
+#include <cppast/libclang_parser.hpp>
+#include <cppast/cpp_entity_index.hpp>
+#include <cppast/cpp_file.hpp>
 #include <fstream>
 #include <filesystem>
 #include <fmt/base.h>
@@ -23,48 +26,44 @@ int main()
 
     for (const auto& header : quartz::headers())
     {   
-        // generate bindings headers
+        // generate bindings
 
-        auto timer_begin = quartz::start_timer();
+        { // headers
+            auto timer_begin = quartz::start_timer();
 
-        std::filesystem::path output_path = bindings_folder / "headers" / header;
-        output_path.replace_extension(".hpp");
+            std::filesystem::path output_path = bindings_folder / "headers" / header;
+            output_path.replace_extension(".hpp");
 
-        // try creating directories
-        auto output_parent_path = output_path.parent_path();
-        std::error_code ec;
-        std::filesystem::create_directories(output_parent_path, ec);
+            if (!quartz::try_create_dir(output_path.parent_path()))
+            {
+                continue;
+            }
 
-        if (ec)
-        {
-            fmt::print("Failed to create directory: \"{}\" | message: {}\n", output_parent_path.string(), ec.message());
-            continue;
+            std::ofstream created_file(output_path);
+
+            if (!created_file)
+            {
+                fmt::print("Failed to create: \"{}\"\n", output_path.string());
+                continue;
+            }
+
+            created_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+
+            try
+            {
+                created_file << quartz::bindings::make_hpp(header.stem().string(), header.has_parent_path() ? header.parent_path().string() : "");
+                fmt::print("Successfully wrote: \"{}\" | took {}s\n",
+                           output_path.string(), quartz::end_timer(timer_begin));
+            }
+            catch (const std::ofstream::failure& e)
+            {
+                fmt::print("Failed to write: \"{}\" | what: {}\n",
+                           output_path.string(), e.what());
+                continue;
+            }
+
+            created_file.close();
         }
-
-        std::ofstream created_file(output_path);
-
-        if (!created_file)
-        {
-            fmt::print("Failed to create bindings header: \"{}\"\n", output_path.string());
-            continue;
-        }
-
-        // enable exceptions for write failures
-        created_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
-
-        try
-        {
-            created_file << quartz::bindings_decl(header.stem().string(), header.has_parent_path() ? header.parent_path().string() : "");
-            auto timer_end = quartz::end_timer(timer_begin);
-            fmt::print("Generated bindings header successfully: \"{}\" | took {}s\n", output_path.string(), timer_end);
-        }
-        catch (const std::ofstream::failure& e)
-        {
-            fmt::print("Failed to write bindings header: \"{}\" | what: {}\n", output_path.string(), e.what());
-            continue;
-        }
-
-        created_file.close();
     }
 
 	return 0;

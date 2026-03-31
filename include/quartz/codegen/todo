@@ -1,0 +1,85 @@
+#include <quartz/bindings/{class_name}.hpp>
+#include <quartz/hooks/{class_name}.hpp>
+#include <quartz/core/LuaManager.hpp>
+#include <new>
+
+namespace quartz
+{{
+
+{class_name}Bindings::{class_name}Bindings()
+{{
+    auto& luaManager = quartz::LuaManager::get();
+    luaManager.queueBinding(
+        [&luaManager]()
+        {{
+            auto& state = luaManager.luaState();
+
+            state.new_usertype<{class_name}>(
+                "{class_name}",
+                sol::constructors<{class_name}()>(),
+                sol::base_classes, sol::bases<{base_classes}>()
+            );
+
+            sol::table usertype = state["{class_name}"];
+
+            usertype.set_function(
+                "fields", [](sol::this_state s, {class_name}* self)
+                {{
+                    auto __self = static_cast<quartz::hooks::__PlayerObject*>(self);
+                    auto& luaFields = __self->m_fields->m_luaFields;
+
+                    if (!luaFields.valid())
+                    {{
+                        sol::state_view lua(s);
+                        luaFields = lua.create_table();
+                    }}
+
+                    return luaFields;
+                }}
+            );
+
+            usertype.set_function(
+                "alloc", []({construcor_args})
+                {{
+                    {class_name}* ptr = new (std::nothrow) {class_name}();
+                    return ptr;
+                }}
+            );
+
+            usertype.set_function(
+                "free", []({class_name}* self)
+                {{
+                    delete self;
+                }}
+            );
+
+            luaManager.addValidHook("{class_name}.create");
+            usertype.set_function(
+                "create", [](int player, int ship, GJBaseGameLayer* gameLayer, cocos2d::CCLayer* layer, bool playLayer)
+                {{
+                    return quartz::hooks::__PlayerObject::create(player, ship, gameLayer, layer, playLayer);
+                }}
+            );
+
+            luaManager.addValidHook("{class_name}:init");
+            usertype.set_function(
+                "init", []({class_name}* self, int player, int ship, GJBaseGameLayer* gameLayer, cocos2d::CCLayer* layer, bool playLayer)
+                {{
+                    auto __self = static_cast<quartz::hooks::__PlayerObject*>(self);
+                    return __self->init(player, ship, gameLayer, layer, playLayer);
+                }}
+            );
+
+            luaManager.addValidHook("{class_name}:update");
+            usertype.set_function(
+                "update", []({class_name}* self, float dt)
+                {{
+                    auto __self = static_cast<quartz::hooks::__PlayerObject*>(self);
+                    __self->update(dt);
+                }}
+            );
+        }}
+    );
+}}
+
+}} // quartz

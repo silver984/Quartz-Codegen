@@ -1,1 +1,43 @@
-This file is used for testing subfolders
+#pragma once
+
+class Test
+{
+public:
+    /**
+     * @note[short] MacOS (ARM): 0xffffff
+     * @note[short] MacOS (Intel): 0xffffff
+     * @note[short] Windows: 0xffffff
+     * @note[short] iOS: 0xffffff
+     * @note[short] Android
+     */
+    Test();
+
+    /**
+     * @note[short] MacOS (ARM): 0xffffff
+     * @note[short] MacOS (Intel): 0xffffff
+     * @note[short] Windows: 0xffffff
+     * @note[short] iOS: 0xffffff
+     * @note[short] Android
+     */
+    Test(int p0, bool p2, float p3);
+
+    /**
+     * @note[short] MacOS (ARM): 0xffffff
+     * @note[short] MacOS (Intel): 0xffffff
+     * @note[short] Windows: 0xffffff
+     * @note[short] iOS: 0xffffff
+     * @note[short] Android
+     */
+    ~Test();
+
+	/**
+     * @note[short] MacOS (ARM): 0xffffff
+     * @note[short] MacOS (Intel): 0xffffff
+     * @note[short] Windows: 0xffffff
+     * @note[short] iOS: 0xffffff
+     * @note[short] Android
+     */
+	void exampleFn();
+
+    int m_exampleField;
+};

@@ -25,9 +25,9 @@ template <typename... T>
 struct unordered_map {};
 template <typename... T>
 struct map {};
-template <typename T>
+template <typename... T>
 struct unordered_set {};
-template <typename T>
+template <typename... T>
 struct vector {};
 
 } // namespace gd

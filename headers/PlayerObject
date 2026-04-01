@@ -1,21 +1,69 @@
 #pragma once
-#include <stdexcept>
-#include <Geode/platform/platform.hpp>
-#include <Geode/c++stl/gdstdlib.hpp>
-#include <cocos2d.h>
-#include <cocos-ext.h>
-#include <Geode/GeneratedPredeclare.hpp>
-#include <Geode/Enums.hpp>
-#include <Geode/utils/SeedValue.hpp>
 
-#include "GJPointDouble.hpp"
-#include "GameObject.hpp"
-#include "AnimatedSpriteDelegate.hpp"
+namespace cocos2d
+{
+
+struct CCLayer {};
+struct CCPoint {};
+struct CCRect {};
+struct ccColor3B {};
+struct CCDictionary {};
+struct CCSprite {};
+struct CCArray {};
+struct CCNode {};
+struct CCParticleSystemQuad {};
+struct CCMotionStreak {};
+struct CCSpriteBatchNode {};
+
+} // namespace cocos2d
+
+namespace gd
+{
+
+struct string {};
+template <typename... T>
+struct unordered_map {};
+template <typename... T>
+struct map {};
+template <typename T>
+struct unordered_set {};
+template <typename T>
+struct vector {};
+
+} // namespace gd
+
+namespace geode
+{
+
+struct SeedValueRSV {};
+
+} // namespace geode
+
+struct GameObject {};
+struct AnimatedSpriteDelegate {};
+struct GJBaseGameLayer {};
+struct OBB2D {};
+struct RingObject {};
+struct PlayerButton {};
+struct GameObjectType {};
+struct PlayerCheckpoint {};
+struct EffectGameObject {};
+struct DashRingObject {};
+struct PlayerCollisionDirection {};
+struct GhostType {};
+struct PlayerFireBoostSprite {};
+struct GJPointDouble {};
+struct HardStreak {};
+struct GhostTrailEffect {};
+struct CheckpointObject {};
+struct GJRobotSprite {};
+struct GJSpiderSprite {};
+struct ShipStreak {};
+struct GJActionManager {};
 
 class PlayerObject : public GameObject, public AnimatedSpriteDelegate {
 public:
     static constexpr auto CLASS_NAME = "PlayerObject";
-    GEODE_CUSTOM_CONSTRUCTOR_GD(PlayerObject, GameObject)
 
     /**
      * @note[short] MacOS (ARM): 0x39215c

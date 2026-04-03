@@ -39,7 +39,14 @@ int main()
             throw;
         }
 
-        quartz::bindings::generate_impl(parsed);
+        try
+        {
+            quartz::bindings::generate_impl(parsed);
+        }
+        catch (const std::runtime_error& re)
+        {
+            throw;
+        }
     }
 
 	return 0;

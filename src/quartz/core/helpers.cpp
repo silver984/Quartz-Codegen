@@ -57,10 +57,10 @@ std::string get_namespace(const std::filesystem::path& header)
     return fixed_path.has_parent_path() ? fixed_path.parent_path().string() : "";
 }
 
-std::string indent_lines(const std::string& text, size_t spaces)
+std::string indent_lines(const std::string& str, size_t spaces)
 {
     std::string indent(spaces, ' ');
-    std::stringstream input(text);
+    std::stringstream input(str);
     std::stringstream output;
     std::string line;
 
@@ -74,9 +74,9 @@ std::string indent_lines(const std::string& text, size_t spaces)
         output << "\n";
     }
     
-    auto str = output.str();
-    remove_trailing_end(str, 1);
-    return str;
+    auto output_str = output.str();
+    remove_trailing_end(output_str, 1);
+    return output_str;
 }
 
 double end_timer(const std::chrono::steady_clock::time_point& start)

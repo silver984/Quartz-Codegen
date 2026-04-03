@@ -19,7 +19,7 @@ public:
      * @note[short] iOS: 0xffffff
      * @note[short] Android
      */
-    Test(int p0, bool p2, float p3);
+    Test(int, double, bool, float);
 
     /**
      * @note[short] MacOS (ARM): 0xffffff
@@ -38,6 +38,15 @@ public:
      * @note[short] Android
      */
 	void exampleFn();
+
+    /**
+     * @note[short] MacOS (ARM): 0xffffff
+     * @note[short] MacOS (Intel): 0xffffff
+     * @note[short] Windows: 0xffffff
+     * @note[short] iOS: 0xffffff
+     * @note[short] Android
+     */
+	void exampleFn(int, float, float);
 
     int m_exampleField;
 };

@@ -73,21 +73,46 @@ parsed_class parse(const std::filesystem::path& header)
                             ret.constructors.push_back(parsed_ctor);
                         }
 
-                        if (kind == cppast::cpp_entity_kind::member_function_t)
+                        // static functions
+                        if (kind == cppast::cpp_entity_kind::function_t)
                         {
-                            const auto& mem_fn = static_cast<const cppast::cpp_constructor&>(member);
+                            const auto& mem_fn = static_cast<const cppast::cpp_function&>(member);
 
                             parsed_function parsed_fn;
-                            parsed_fn.name = mem_fn.name();
                             // im not sure why `mem_fn.comment().value_or(..)` isn't working
                             parsed_fn.comment = mem_fn.comment().has_value() ? mem_fn.comment().value() : "";
+                            parsed_fn.is_out_of_line = parsed_fn.comment.find_first_of("Out of line") != std::string::npos;
+                            parsed_fn.return_type = cppast::to_string(mem_fn.return_type());
+                            parsed_fn.is_virtual = false; // its odd for a static function to be virtual
+                            parsed_fn.is_static = true;
 
                             for (const auto& arg : mem_fn.parameters())
                             {
                                 parsed_fn.args.emplace_back(parsed_var(cppast::to_string(arg.type()), arg.name()));
                             }
 
-                            ret.member_functions.push_back(parsed_fn);
+                            ret.member_functions.insert({ mem_fn.name(), parsed_fn });
+                        }
+
+                        // member functions
+                        if (kind == cppast::cpp_entity_kind::member_function_t)
+                        {
+                            const auto& mem_fn = static_cast<const cppast::cpp_member_function&>(member);
+
+                            parsed_function parsed_fn;
+                            // im not sure why `mem_fn.comment().value_or(..)` isn't working
+                            parsed_fn.comment = mem_fn.comment().has_value() ? mem_fn.comment().value() : "";
+                            parsed_fn.is_out_of_line = parsed_fn.comment.find_first_of("Out of line") != std::string::npos;
+                            parsed_fn.return_type = cppast::to_string(mem_fn.return_type());
+                            parsed_fn.is_virtual = mem_fn.is_virtual();
+                            parsed_fn.is_static = false; // this is a member function
+                            
+                            for (const auto& arg : mem_fn.parameters())
+                            {
+                                parsed_fn.args.emplace_back(parsed_var(cppast::to_string(arg.type()), arg.name()));
+                            }
+
+                            ret.member_functions.insert({ mem_fn.name(), parsed_fn });
                         }
 
                         if (kind == cppast::cpp_entity_kind::member_variable_t)
@@ -110,14 +135,9 @@ parsed_class parse(const std::filesystem::path& header)
         }
     );
 
-    std::sort(ret.base_classes.begin(), ret.base_classes.end());
+    // sort them out alpabetically
 
-    std::sort(ret.member_functions.begin(), ret.member_functions.end(),
-        [](const parsed_function& a, const parsed_function& b)
-        {
-            return a.name < b.name;
-        }
-    );
+    std::sort(ret.base_classes.begin(), ret.base_classes.end());
 
     std::sort(ret.member_variables.begin(), ret.member_variables.end(),
         [](const parsed_var& a, const parsed_var& b)

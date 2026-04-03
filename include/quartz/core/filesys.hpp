@@ -3,8 +3,7 @@
 #include <filesystem>
 #include <fstream>
 
-namespace quartz
-{
+namespace quartz {
 
 std::vector<std::filesystem::path> headers();
 void try_create_dir(const std::filesystem::path& path);

@@ -4,11 +4,15 @@
 #include <chrono>
 #include <cstdint>
 
-namespace quartz
-{
+namespace quartz {
 
-inline std::chrono::steady_clock::time_point start_timer()
-{
+enum scope_position : int {
+	left,
+	right,
+	middle
+};
+
+inline std::chrono::steady_clock::time_point start_timer() {
 	return std::chrono::high_resolution_clock::now();
 }
 
@@ -17,6 +21,11 @@ std::string camel_to_snake(const std::string& str);
 std::string remove_prefix(const std::string& str, const std::string& prefix);
 std::string get_namespace(const std::filesystem::path& header);
 std::string indent_lines(const std::string& str, size_t spaces);
+// left: "::str"
+// right: "str::"
+// middle: "::str::"
+// returns empty string if str is also empty
+std::string add_scope_qualifier(const std::string& str, scope_position alignment);
 double end_timer(const std::chrono::steady_clock::time_point& start); // returns in seconds
 void remove_trailing_end(std::string& str, size_t count);
 

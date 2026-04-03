@@ -2,8 +2,7 @@
 #include <quartz/core/parsed_types.hpp>
 #include <filesystem>
 
-namespace quartz
-{
+namespace quartz {
 
 parsed_class parse(const std::filesystem::path& header);
 

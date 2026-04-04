@@ -457,12 +457,12 @@ namespace quartz{MAYBE_NAMESPACE_LEFT} {{
 
     try {
         created_file << impl;
-    }
-    catch (const std::ofstream::failure& e) {
+    } catch (const std::ofstream::failure& e) {
         throw;
     }
 
     created_file.close();
+
     fmt::print("Successfully generated \"{}\" | took: {}s\n", output_path.string(), quartz::end_timer(start_timer));
 }
 

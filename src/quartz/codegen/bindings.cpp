@@ -337,8 +337,21 @@ void generate_impl(const quartz::parsed_class& parsed) {
             bool is_return_type_void = return_type == "void";
             bool dont_use_modified_self = fn.is_out_of_line || fn.is_static;
             
+            std::string lambda_content_comment;
+
+            if (fn.is_out_of_line) {
+                lambda_content_comment += "// this function is out of line on at least one platform\n// it cannot be modified, ";
+
+                if (fn.is_static) {
+                    lambda_content_comment += "so we call the original static function instead\n";
+                } else {
+                    lambda_content_comment += "so we call it using `self` instead\n";
+                }
+            }
+
             std::string lambda_content = fmt::format(
-                "{MAYBE_MODIFIED_SELF}{MAYBE_RETURN}{CALL}",
+                "{MAYBE_COMMENT}{MAYBE_MODIFIED_SELF}{MAYBE_RETURN}{CALL}",
+                fmt::arg("MAYBE_COMMENT", lambda_content_comment),
                 fmt::arg("MAYBE_MODIFIED_SELF", dont_use_modified_self ? "" : modified_self),
                 fmt::arg("MAYBE_RETURN", is_return_type_void ? "" : "return "),
                 fmt::arg("CALL", call));
@@ -391,12 +404,12 @@ namespace quartz{MAYBE_NAMESPACE_LEFT} {{
     luaManager.queueBinding(
         [&luaManager]() {{
 {NEW_USERTYPE}
-            
+
             // expose the custom fields to lua
             usertype.set_function("fields",
                 [](sol::this_state s, {MAYBE_NAMESPACE_RIGHT}{CLASS}* self) -> sol::table {{
                     sol::state_view lua(s);
-                    
+
                     if (!self) {{
                         return lua.create_table();
                     }}
@@ -405,24 +418,24 @@ namespace quartz{MAYBE_NAMESPACE_LEFT} {{
                     if (modifiedSelf->m_fields) {{
                         // this cast is required to access lua field storage
                         auto& luaFields = modifiedSelf->m_fields->m_luaFields;
-                    
+
                         if (!luaFields.valid()) {{
                             // lazily create lua fields on first access
                             luaFields = lua.create_table();
                         }}
-                        
+
                         return luaFields;
                     }}
-                    
+
                     return lua.create_table();
                 }});
-            
+
             // manual allocation exposed to lua
             // returns raw pointer
             // lua must `free()` and `obj = nil` after use
 {ALLOC}
-            
-            // manual deallocation `for alloc()`
+
+            // manual deallocation for `alloc()`
             usertype.set_function("free",
                 []({MAYBE_NAMESPACE_RIGHT}{CLASS}* self) {{
                     delete self;

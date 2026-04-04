@@ -1,4 +1,5 @@
 #include <quartz/codegen/bindings.hpp>
+#include <quartz/codegen/modified.hpp>
 #include <quartz/core/filesys.hpp>
 #include <quartz/core/parse.hpp>
 #include <fmt/base.h>
@@ -25,6 +26,12 @@ int main() {
 
         try {
             quartz::bindings::generate_header(parsed);
+        } catch (const std::runtime_error& re) {
+            throw;
+        }
+
+        try {
+            quartz::modified::generate_header(parsed);
         } catch (const std::runtime_error& re) {
             throw;
         }

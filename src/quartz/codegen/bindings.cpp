@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <cstdint>
-#include <algorithm>
+#include <stdexcept>
 
 namespace {
 

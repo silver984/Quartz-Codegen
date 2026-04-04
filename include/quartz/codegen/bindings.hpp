@@ -1,5 +1,4 @@
 #pragma once
-#include <filesystem>
 #include <quartz/core/parsed_types.hpp>
 
 namespace quartz::bindings {

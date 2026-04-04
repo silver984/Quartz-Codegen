@@ -1,7 +1,6 @@
 #pragma once
 
-namespace cocos2d
-{
+namespace cocos2d {
 
 struct CCLayer {};
 struct CCPoint {};
@@ -17,8 +16,7 @@ struct CCSpriteBatchNode {};
 
 } // namespace cocos2d
 
-namespace gd
-{
+namespace gd {
 
 struct string {};
 template <typename... T>
@@ -32,8 +30,7 @@ struct vector {};
 
 } // namespace gd
 
-namespace geode
-{
+namespace geode {
 
 struct SeedValueRSV {};
 

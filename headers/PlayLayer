@@ -1,7 +1,6 @@
 #pragma once
 
-namespace cocos2d
-{
+namespace cocos2d {
 
 struct CCScene {};
 struct ccColor3B {};
@@ -14,8 +13,7 @@ struct CCDictionary {};
 
 } // namespace cocos2d
 
-namespace gd
-{
+namespace gd {
 
 template <typename... T>
 struct vector {};

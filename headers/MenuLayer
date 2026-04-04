@@ -1,7 +1,6 @@
 #pragma once
 
-namespace cocos2d
-{
+namespace cocos2d {
 
 struct CCLayer {};
 struct CCScene {};

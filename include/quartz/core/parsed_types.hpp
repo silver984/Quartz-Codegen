@@ -20,6 +20,8 @@ struct parsed_function {
     std::vector<std::string> modifiers;
     std::string comment;
     bool is_virtual;
+    bool is_const_qualifier;
+    bool is_volatile_qualifier;
     bool is_static;
     bool is_out_of_line;
     std::vector<parsed_var> args;

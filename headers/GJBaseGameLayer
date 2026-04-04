@@ -1,7 +1,6 @@
 #pragma once
 
-namespace cocos2d
-{
+namespace cocos2d {
 
 struct CCLayer {};
 struct ccColor3B {};
@@ -21,8 +20,7 @@ struct CCObject {};
 
 } // namespace cocos2d
 
-namespace gd
-{
+namespace gd {
 
 struct string {};
 template <typename... T>
@@ -38,8 +36,7 @@ struct map {};
 
 } // namespace gd
 
-namespace std
-{
+namespace std {
 
 template <typename... T>
 struct pair {};

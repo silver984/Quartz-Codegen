@@ -88,16 +88,16 @@ std::string generate_usertype_str(const quartz::parsed_class& parsed) {
     {CONSTRUCTORS}{MAYBE_BASES}{MAYBE_MEMBER_VARIABLES});
 
 sol::table usertype = {STATE_OR_TABLE}["{CLASS}"];)",
-        // either the namespace table or not
-        fmt::arg("MAYBE_NAMESPACE_TABLE", generate_namespace_table_str(parsed)),
-        // we assume that `generate_namespace_table_str(...)` has generated the "ns" table
-        // so we use "ns" instead of "state"
-        fmt::arg("STATE_OR_TABLE", parsed.ns.empty() ? "state" : "ns"),
-        fmt::arg("MAYBE_NAMESPACE", quartz::add_scope_qualifier(parsed.ns, quartz::scope_position::right)),
-        fmt::arg("CLASS", parsed.name),
-        fmt::arg("CONSTRUCTORS", generate_ctors_str(parsed)),
-        fmt::arg("MAYBE_BASES", generate_bases_str(parsed, 4)),
-        fmt::arg("MAYBE_MEMBER_VARIABLES", generate_member_vars_str(parsed, 4)));
+// either the namespace table or not
+fmt::arg("MAYBE_NAMESPACE_TABLE", generate_namespace_table_str(parsed)),
+// we assume that `generate_namespace_table_str(...)` has generated the "ns" table
+// so we use "ns" instead of "state"
+fmt::arg("STATE_OR_TABLE", parsed.ns.empty() ? "state" : "ns"),
+fmt::arg("MAYBE_NAMESPACE", quartz::add_scope_qualifier(parsed.ns, quartz::scope_position::right)),
+fmt::arg("CLASS", parsed.name),
+fmt::arg("CONSTRUCTORS", generate_ctors_str(parsed)),
+fmt::arg("MAYBE_BASES", generate_bases_str(parsed, 4)),
+fmt::arg("MAYBE_MEMBER_VARIABLES", generate_member_vars_str(parsed, 4)));
 }
 
 std::string generate_alloc_str(const quartz::parsed_class& parsed) {
@@ -141,12 +141,12 @@ std::string generate_alloc_str(const quartz::parsed_class& parsed) {
     {MAYBE_NAMESPACE}{CLASS}* ptr = new(std::nothrow) {MAYBE_NAMESPACE}{CLASS}({MAYBE_ARGS_FORWARD});
     return ptr;
 }})",
-            // only generate a new line if were in the second iteration
-            fmt::arg("MAYBE_NEWLINE", i >= 1 ? ",\n" : ""),
-            fmt::arg("MAYBE_ARGS", args),
-            fmt::arg("MAYBE_NAMESPACE", ns_qualified),
-            fmt::arg("CLASS", ctor.name),
-            fmt::arg("MAYBE_ARGS_FORWARD", args_forward));
+// only generate a new line if were in the second iteration
+fmt::arg("MAYBE_NEWLINE", i >= 1 ? ",\n" : ""),
+fmt::arg("MAYBE_ARGS", args),
+fmt::arg("MAYBE_NAMESPACE", ns_qualified),
+fmt::arg("CLASS", ctor.name),
+fmt::arg("MAYBE_ARGS_FORWARD", args_forward));
     }
 
     // there was no constructor, therefore the lambda is empty
@@ -157,8 +157,8 @@ std::string generate_alloc_str(const quartz::parsed_class& parsed) {
     {MAYBE_NAMESPACE}{CLASS}* ptr = new(std::nothrow) {MAYBE_NAMESPACE}{CLASS}();
     return ptr;
 }})",
-            fmt::arg("MAYBE_NAMESPACE", ns_qualified),
-            fmt::arg("CLASS", parsed.name));
+fmt::arg("MAYBE_NAMESPACE", ns_qualified),
+fmt::arg("CLASS", parsed.name));
     }
 
     // indent by 8 spaces if the there are more than one constructor
@@ -182,6 +182,157 @@ std::string generate_alloc_str(const quartz::parsed_class& parsed) {
         fmt::arg("LAMBDA", lambda_str));
 
     return str;
+}
+
+std::string generate_functions_str(const quartz::parsed_class& parsed) {
+    std::string functions_str;
+    std::string ns_qualified = quartz::add_scope_qualifier(parsed.ns, quartz::scope_position::right);
+    std::string modified_self = fmt::format(
+        "auto modifiedSelf = static_cast<quartz::{MAYBE_NAMESPACE}{CLASS}Modified*>(self);\n",
+        fmt::arg("MAYBE_NAMESPACE", ns_qualified),
+        fmt::arg("CLASS", parsed.name));
+
+    for (auto it = parsed.member_functions.begin(); it != parsed.member_functions.end();) {
+        const auto& fn_name = it->first;
+        const auto& fn_name_camel = quartz::camel_to_snake(fn_name);
+        auto range = parsed.member_functions.equal_range(fn_name);
+        size_t count = 0; // to count the same function
+        std::string lamda_str;
+        std::string valid_hook_str;
+
+        // this for loop is here to support function overloads
+        for (auto jt = range.first; jt != range.second; ++jt) {
+            count++;
+
+            const auto& fn = jt->second;
+
+            if (!fn.is_out_of_line) {
+                // add this function as hookable
+                std::string index_str = count > 1 ? fmt::format("@{}", count) : "";
+                std::string lua_namespace = parsed.ns.empty() ? "" : parsed.ns + ".";
+                valid_hook_str += fmt::format(R"(luaManager.addValidHook("{MAYBE_LUA_NAMESPACE}{CLASS}{COLON_OR_DOT}{NAME}{MAYBE_INDEX}");{NEW_LINE})",
+                    fmt::arg("MAYBE_LUA_NAMESPACE", lua_namespace),
+                    fmt::arg("CLASS", parsed.name),
+                    fmt::arg("COLON_OR_DOT", fn.is_static ? "." : ":"),
+                    fmt::arg("NAME", fn_name_camel),
+                    fmt::arg("MAYBE_INDEX", index_str),
+                    fmt::arg("NEW_LINE", "\n"));
+            }
+
+            size_t args_count = fn.args.size();
+            std::string args;
+            std::string args_forward;
+            std::string self_arg = fmt::format(
+                "{MAYBE_NAMESPACE}{CLASS}* self{MAYBE_JOINER}",
+                fmt::arg("MAYBE_NAMESPACE", ns_qualified),
+                fmt::arg("CLASS", parsed.name),
+                fmt::arg("MAYBE_JOINER", args_count >= 1 ? ", " : ""));
+
+            for (size_t i = 0; i < args_count; ++i) {
+                const auto& arg = fn.args[i];
+                bool is_arg_name_empty = arg.name.empty();
+
+                // if the function is declared like this: `return_type name(void);`
+                // it explicitly takes no arguments
+                if (arg.type == "void" && is_arg_name_empty) {
+                    break;
+                }
+
+                // generates a numbered argument in case the argument's name is empty
+                std::string generated_name = is_arg_name_empty
+                    ? fmt::format("a{}", i)
+                    : arg.name;
+
+                args += fmt::format("{TYPE} {NAME}, ",
+                    fmt::arg("TYPE", arg.type),
+                    fmt::arg("NAME", generated_name));
+
+                args_forward += fmt::format("{NAME}, ",
+                    fmt::arg("NAME", generated_name));
+            }
+
+            // remove the last ", " in each of these strings
+            quartz::remove_trailing_end(args, 2);
+            quartz::remove_trailing_end(args_forward, 2);
+
+            std::string call;
+
+            if (!fn.is_static) {
+                call = fmt::format("{SELF}->{NAME}({ARGS_FORWARD});",
+                    fmt::arg("SELF", fn.is_out_of_line ? "self" : "modifiedSelf"),
+                    fmt::arg("NAME", fn_name),
+                    fmt::arg("ARGS_FORWARD", args_forward));
+            } else {
+                call = fmt::format("{MAYBE_NAMESPACE}{CLASS}{MAYBE_MODIFIED}::{NAME}({ARGS_FORWARD});",
+                    fmt::arg("MAYBE_NAMESPACE", fn.is_out_of_line ? ns_qualified : "quartz::" + ns_qualified),
+                    fmt::arg("CLASS", parsed.name),
+                    fmt::arg("MAYBE_MODIFIED", fn.is_out_of_line ? "" : "Modified"),
+                    fmt::arg("NAME", fn_name),
+                    fmt::arg("ARGS_FORWARD", args_forward));
+            }
+
+            const auto& return_type = fn.return_type;
+            bool is_static = fn.is_static;
+            bool is_return_type_void = return_type == "void";
+            bool dont_use_modified_self = fn.is_out_of_line || fn.is_static;
+
+            std::string lambda_content_comment;
+
+            if (fn.is_out_of_line) {
+                lambda_content_comment += "// this function is out of line on at least one platform\n// it cannot be modified, ";
+
+                if (fn.is_static) {
+                    lambda_content_comment += "so we call the original static function instead\n";
+                } else {
+                    lambda_content_comment += "so we call it using `self` instead\n";
+                }
+            }
+
+            std::string lambda_content = fmt::format(
+                "{MAYBE_COMMENT}{MAYBE_MODIFIED_SELF}{MAYBE_RETURN}{CALL}",
+                fmt::arg("MAYBE_COMMENT", lambda_content_comment),
+                fmt::arg("MAYBE_MODIFIED_SELF", dont_use_modified_self ? "" : modified_self),
+                fmt::arg("MAYBE_RETURN", is_return_type_void ? "" : "return "),
+                fmt::arg("CALL", call));
+
+            lambda_content = quartz::indent_lines(lambda_content, 4);
+
+            lamda_str += fmt::format(R"({MAYBE_NEWLINE}[]({MAYBE_SELF}{MAYBE_ARGS}){RETURN_TYPE} {{
+{CONTENT}
+}})",
+fmt::arg("MAYBE_NEWLINE", count > 1 ? ",\n" : ""),
+fmt::arg("MAYBE_SELF", is_static ? "" : self_arg),
+fmt::arg("MAYBE_ARGS", args),
+fmt::arg("RETURN_TYPE", is_return_type_void ? "" : " -> " + return_type),
+fmt::arg("CONTENT", lambda_content));
+        }
+
+        // indent by 8 spaces if the there are more than one constructor
+        // this is so the string sits inside `sol::overload(...)`
+        // indent by 4 spaces if there's only one
+        lamda_str = quartz::indent_lines(lamda_str, count > 1 ? 8 : 4);
+
+        if (count > 1) {
+            functions_str += fmt::format(R"({NEW_LINES}{MAYBE_VALID_HOOKS}usertype.set_function("{NAME}",
+    sol::overload(
+{LAMBDA}));)",
+fmt::arg("MAYBE_VALID_HOOKS", valid_hook_str),
+fmt::arg("NEW_LINES", "\n\n"),
+fmt::arg("NAME", fn_name_camel),
+fmt::arg("LAMBDA", lamda_str));
+        } else {
+            functions_str += fmt::format(R"({NEW_LINES}{MAYBE_VALID_HOOKS}usertype.set_function("{NAME}",
+{LAMBDA});)",
+fmt::arg("MAYBE_VALID_HOOKS", valid_hook_str),
+fmt::arg("NEW_LINES", "\n\n"),
+fmt::arg("NAME", fn_name_camel),
+fmt::arg("LAMBDA", lamda_str));
+        }
+
+        it = range.second; // skip processed group
+    }
+
+    return functions_str;
 }
 
 } // namespace <unnamed>
@@ -257,141 +408,14 @@ void generate_impl(const quartz::parsed_class& parsed) {
     }
 
     std::string new_usertype = generate_usertype_str(parsed);
-    new_usertype = quartz::indent_lines(new_usertype, 12);
-
     std::string alloc_str = generate_alloc_str(parsed);
+    std::string functions_str = generate_functions_str(parsed);
+
     alloc_str = quartz::indent_lines(alloc_str, 12);
-
-    std::string functions_str;
-    std::string ns_qualified = quartz::add_scope_qualifier(parsed.ns, quartz::scope_position::right);
-    std::string modified_self = fmt::format(
-        "auto modifiedSelf = static_cast<quartz::{MAYBE_NAMESPACE}{CLASS}Modified*>(self);\n",
-        fmt::arg("MAYBE_NAMESPACE", ns_qualified),
-        fmt::arg("CLASS", parsed.name));
-
-    for (auto it = parsed.member_functions.begin(); it != parsed.member_functions.end();) {
-        const auto& fn_name = it->first;
-        const auto& fn_name_camel = quartz::camel_to_snake(fn_name);
-        auto range = parsed.member_functions.equal_range(fn_name);
-        // to count the same function
-        size_t count = 0;
-        std::string lamda_str;
-
-        // this for loop is here to support function overloads
-        for (auto jt = range.first; jt != range.second; ++jt) {
-            count++;
-            const auto& fn = jt->second;
-            size_t args_count = fn.args.size();
-            std::string args;
-            std::string args_forward;
-            std::string self_arg = fmt::format(
-                "{MAYBE_NAMESPACE}{CLASS}* self{MAYBE_JOINER}",
-                fmt::arg("MAYBE_NAMESPACE", ns_qualified),
-                fmt::arg("CLASS", parsed.name),
-                fmt::arg("MAYBE_JOINER", args_count >= 1 ? ", " : ""));
-
-            for (size_t i = 0; i < args_count; ++i) {
-                const auto& arg = fn.args[i];
-                bool is_arg_name_empty = arg.name.empty();
-
-                // if the function is declared like this: `return_type name(void);`
-                // it explicitly takes no arguments
-                if (arg.type == "void" && is_arg_name_empty) {
-                    break;
-                }
-
-                // generates a numbered argument in case the argument's name is empty
-                std::string generated_name = is_arg_name_empty
-                    ? fmt::format("a{}", i)
-                    : arg.name;
-
-                args += fmt::format("{TYPE} {NAME}, ",
-                    fmt::arg("TYPE", arg.type),
-                    fmt::arg("NAME", generated_name));
-
-                args_forward += fmt::format( "{NAME}, ",
-                    fmt::arg("NAME", generated_name));
-            }
-
-            // remove the last ", " in each of these strings
-            quartz::remove_trailing_end(args, 2);
-            quartz::remove_trailing_end(args_forward, 2);
-            std::string call;
-
-            if (!fn.is_static) {
-                call = fmt::format("{SELF}->{NAME}({ARGS_FORWARD});",
-                    fmt::arg("SELF", fn.is_out_of_line ? "self" : "modifiedSelf"),
-                    fmt::arg("NAME", fn_name),
-                    fmt::arg("ARGS_FORWARD", args_forward));
-            } else {
-                call = fmt::format("{MAYBE_NAMESPACE}{CLASS}{MAYBE_MODIFIED}::{NAME}({ARGS_FORWARD});",
-                    fmt::arg("MAYBE_NAMESPACE", fn.is_out_of_line ? ns_qualified : "quartz::" + ns_qualified),
-                    fmt::arg("CLASS", parsed.name),
-                    fmt::arg("MAYBE_MODIFIED", fn.is_out_of_line ? "" : "Modified"),
-                    fmt::arg("NAME", fn_name),
-                    fmt::arg("ARGS_FORWARD", args_forward));
-            }
-
-            const auto& return_type = fn.return_type;
-            bool is_static = fn.is_static;
-            bool is_return_type_void = return_type == "void";
-            bool dont_use_modified_self = fn.is_out_of_line || fn.is_static;
-            
-            std::string lambda_content_comment;
-
-            if (fn.is_out_of_line) {
-                lambda_content_comment += "// this function is out of line on at least one platform\n// it cannot be modified, ";
-
-                if (fn.is_static) {
-                    lambda_content_comment += "so we call the original static function instead\n";
-                } else {
-                    lambda_content_comment += "so we call it using `self` instead\n";
-                }
-            }
-
-            std::string lambda_content = fmt::format(
-                "{MAYBE_COMMENT}{MAYBE_MODIFIED_SELF}{MAYBE_RETURN}{CALL}",
-                fmt::arg("MAYBE_COMMENT", lambda_content_comment),
-                fmt::arg("MAYBE_MODIFIED_SELF", dont_use_modified_self ? "" : modified_self),
-                fmt::arg("MAYBE_RETURN", is_return_type_void ? "" : "return "),
-                fmt::arg("CALL", call));
-
-            lambda_content = quartz::indent_lines(lambda_content, 4);
-
-            lamda_str += fmt::format(R"({MAYBE_NEWLINE}[]({MAYBE_SELF}{MAYBE_ARGS}){RETURN_TYPE} {{
-{CONTENT}
-}})",
-                fmt::arg("MAYBE_NEWLINE", count > 1 ? ",\n" : ""),
-                fmt::arg("MAYBE_SELF", is_static ? "" : self_arg),
-                fmt::arg("MAYBE_ARGS", args),
-                fmt::arg("RETURN_TYPE", is_return_type_void ? "" : " -> " + return_type),
-                fmt::arg("CONTENT", lambda_content));
-        }
-        
-        lamda_str = quartz::indent_lines(lamda_str, count > 1 ? 8 : 4);
-
-        if (count > 1) {
-            functions_str += fmt::format(R"({NEW_LINES}usertype.set_function("{NAME}",
-    sol::overload(
-{LAMBDA}));)",
-                fmt::arg("NEW_LINES", "\n\n"),
-                fmt::arg("NAME", fn_name_camel),
-                fmt::arg("LAMBDA", lamda_str)
-            );
-        } else {
-            functions_str += fmt::format(R"({NEW_LINES}usertype.set_function("{NAME}",
-{LAMBDA});)",
-                fmt::arg("NEW_LINES", "\n\n"),
-                fmt::arg("NAME", fn_name_camel),
-                fmt::arg("LAMBDA", lamda_str)
-            );
-        }
-
-        it = range.second; // skip processed group
-    }
-
+    new_usertype = quartz::indent_lines(new_usertype, 12);
     functions_str = quartz::indent_lines(functions_str, 12);
 
+    bool is_namespace_empty = parsed.ns.empty();
     std::string impl = fmt::format(R"(#include <quartz/bindings/{MAYBE_NAMESPACE_FOLDER}{CLASS}.hpp>
 #include <quartz/modified/{MAYBE_NAMESPACE_FOLDER}{CLASS}.hpp>
 #include <quartz/core/LuaManager.hpp>
@@ -414,9 +438,9 @@ namespace quartz{MAYBE_NAMESPACE_LEFT} {{
                         return lua.create_table();
                     }}
 
+                    // this cast is required to access lua field storage
                     auto modifiedSelf = static_cast<{CLASS}Modified*>(self);
                     if (modifiedSelf->m_fields) {{
-                        // this cast is required to access lua field storage
                         auto& luaFields = modifiedSelf->m_fields->m_luaFields;
 
                         if (!luaFields.valid()) {{
@@ -444,14 +468,13 @@ namespace quartz{MAYBE_NAMESPACE_LEFT} {{
 }}
 
 }} // namespace quartz{MAYBE_NAMESPACE_LEFT})",
-        fmt::arg("MAYBE_NAMESPACE_FOLDER", parsed.ns.empty() ? "" : parsed.ns + "/"),
-        fmt::arg("CLASS", parsed.name),
-        fmt::arg("MAYBE_NAMESPACE_LEFT", parsed.ns.empty() ? "" : "::" + parsed.ns),
-        fmt::arg("NEW_USERTYPE", new_usertype),
-        fmt::arg("MAYBE_NAMESPACE_RIGHT", parsed.ns.empty() ? "" : parsed.ns + "::"),
-        fmt::arg("ALLOC", alloc_str),
-        fmt::arg("FUNCTIONS", functions_str)
-    );
+fmt::arg("MAYBE_NAMESPACE_FOLDER", is_namespace_empty ? "" : parsed.ns + "/"),
+fmt::arg("CLASS", parsed.name),
+fmt::arg("MAYBE_NAMESPACE_LEFT", is_namespace_empty ? "" : quartz::add_scope_qualifier(parsed.ns, quartz::scope_position::left)),
+fmt::arg("NEW_USERTYPE", new_usertype),
+fmt::arg("MAYBE_NAMESPACE_RIGHT", is_namespace_empty ? "" : quartz::add_scope_qualifier(parsed.ns, quartz::scope_position::right)),
+fmt::arg("ALLOC", alloc_str),
+fmt::arg("FUNCTIONS", functions_str));
 
     created_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
 

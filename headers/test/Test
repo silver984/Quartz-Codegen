@@ -48,5 +48,50 @@ public:
      */
 	void exampleFn(int, float, float);
 
+    /**
+     * @note[short] MacOS (ARM): 0xffffff
+     * @note[short] MacOS (Intel): 0xffffff
+     * @note[short] Windows: 0xffffff
+     * @note[short] iOS: 0xffffff
+     * @note[short] Android
+     */
+	const int& constRef();
+
+    /**
+     * @note[short] MacOS (ARM): 0xffffff
+     * @note[short] MacOS (Intel): 0xffffff
+     * @note[short] Windows: 0xffffff
+     * @note[short] iOS: 0xffffff
+     * @note[short] Android
+     */
+	const int* constPtr();
+
+    /**
+     * @note[short] MacOS (ARM): 0xffffff
+     * @note[short] MacOS (Intel): 0xffffff
+     * @note[short] Windows: 0xffffff
+     * @note[short] iOS: 0xffffff
+     * @note[short] Android
+     */
+	const int*& constPtrRef();
+
+    /**
+     * @note[short] MacOS (ARM): 0xffffff
+     * @note[short] MacOS (Intel): 0xffffff
+     * @note[short] Windows: 0xffffff
+     * @note[short] iOS: 0xffffff
+     * @note[short] Android
+     */
+	int* const ptrConst();
+
+    /**
+     * @note[short] MacOS (ARM): 0xffffff
+     * @note[short] MacOS (Intel): 0xffffff
+     * @note[short] Windows: 0xffffff
+     * @note[short] iOS: 0xffffff
+     * @note[short] Android
+     */
+	const int* const constPtrConst();
+
     int m_exampleField;
 };

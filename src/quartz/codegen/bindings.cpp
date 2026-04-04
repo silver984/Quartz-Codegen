@@ -137,7 +137,7 @@ std::string generate_alloc_str(const quartz::parsed_class& parsed) {
         quartz::remove_trailing_end(args, 2);
         quartz::remove_trailing_end(args_forward, 2);
 
-        lambda_str += fmt::format(R"({MAYBE_NEWLINE}[]({MAYBE_ARGS}) -> {MAYBE_NAMESPACE}{CLASS} {{
+        lambda_str += fmt::format(R"({MAYBE_NEWLINE}[]({MAYBE_ARGS}) -> {MAYBE_NAMESPACE}{CLASS}* {{
     {MAYBE_NAMESPACE}{CLASS}* ptr = new(std::nothrow) {MAYBE_NAMESPACE}{CLASS}({MAYBE_ARGS_FORWARD});
     return ptr;
 }})",

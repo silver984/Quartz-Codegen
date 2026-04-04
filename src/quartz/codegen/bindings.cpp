@@ -32,16 +32,14 @@ std::string generate_ctors_str(const quartz::parsed_class& parsed) {
     
     // remove the last ", " for this string
     quartz::remove_trailing_end(str, 2);
-    std::string implicit_ctor;
 
     if (str.empty()) {
-        implicit_ctor = fmt::format("{MAYBE_NAMESPACE}{NAME}()",
-            fmt::arg("MAYBE_NAMESPACE", ns_qualified),
-            fmt::arg("NAME", parsed.name));
+        str = "sol::no_constructor";
+        return str;
     }
 
     str = fmt::format("sol::constructors<{CONSTRUCTORS}>()",
-        fmt::arg("CONSTRUCTORS", str.empty() ? implicit_ctor : str));
+        fmt::arg("CONSTRUCTORS", str));
 
     return str;
 }
@@ -114,12 +112,6 @@ std::string generate_alloc_str(const quartz::parsed_class& parsed) {
             const auto& arg = ctor.args[j];
             bool is_arg_name_empty = arg.name.empty();
 
-            // if the constructor is declared like this: `name(void);`
-            // it explicitly takes no arguments
-            if (arg.type == "void" && is_arg_name_empty) {
-                break;
-            }
-
             // generates a numbered argument in case the argument's name is empty
             std::string generated_name = is_arg_name_empty
                 ? fmt::format("a{}", j)
@@ -149,36 +141,29 @@ fmt::arg("CLASS", ctor.name),
 fmt::arg("MAYBE_ARGS_FORWARD", args_forward));
     }
 
-    // there was no constructor, therefore the lambda is empty
-    // classes without explicit constructors have implicit constructors
-    // so we still generate it
     if (lambda_str.empty()) {
-        lambda_str = fmt::format(R"([]() -> {MAYBE_NAMESPACE}{CLASS}* {{
-    {MAYBE_NAMESPACE}{CLASS}* ptr = new(std::nothrow) {MAYBE_NAMESPACE}{CLASS}();
-    return ptr;
-}})",
-fmt::arg("MAYBE_NAMESPACE", ns_qualified),
-fmt::arg("CLASS", parsed.name));
+        return {};
     }
 
-    // indent by 8 spaces if the there are more than one constructor
+    // indent by 8 spaces if there are more than one constructor
     // this is so the string sits inside `sol::overload(...)`
     // indent by 4 spaces if there's only one
     lambda_str = quartz::indent_lines(lambda_str, ctor_count > 1 ? 8 : 4);
 
-    std::string str;
+    std::string str = "\n// manual allocation exposed to lua\n// returns raw pointer\n// lua must `free()` and `obj = nil` after use\n";
 
     if (ctor_count > 1) {
-        str = R"(usertype.set_function("alloc",
+        str += R"(usertype.set_function("alloc",
     sol::overload(
-{LAMBDA}));)";
+{LAMBDA}));{NEW_LINE}{NEW_LINE})";
     } else {
-        str = R"(usertype.set_function("alloc",
-{LAMBDA});)";
+        str += R"(usertype.set_function("alloc",
+{LAMBDA});{NEW_LINE}{NEW_LINE})";
     }
 
     str = fmt::format(
         fmt::runtime(str),
+        fmt::arg("NEW_LINE", "\n"),
         fmt::arg("LAMBDA", lambda_str));
 
     return str;
@@ -192,6 +177,7 @@ std::string generate_functions_str(const quartz::parsed_class& parsed) {
         fmt::arg("MAYBE_NAMESPACE", ns_qualified),
         fmt::arg("CLASS", parsed.name));
 
+    size_t iterations = 0;
     for (auto it = parsed.member_functions.begin(); it != parsed.member_functions.end();) {
         const auto& fn_name = it->first;
         const auto& fn_name_camel = quartz::camel_to_snake(fn_name);
@@ -202,6 +188,7 @@ std::string generate_functions_str(const quartz::parsed_class& parsed) {
 
         // this for loop is here to support function overloads
         for (auto jt = range.first; jt != range.second; ++jt) {
+            iterations++;
             count++;
 
             const auto& fn = jt->second;
@@ -317,14 +304,14 @@ fmt::arg("CONTENT", lambda_content));
     sol::overload(
 {LAMBDA}));)",
 fmt::arg("MAYBE_VALID_HOOKS", valid_hook_str),
-fmt::arg("NEW_LINES", "\n\n"),
+fmt::arg("NEW_LINES", iterations > 1 ? "\n\n" : ""),
 fmt::arg("NAME", fn_name_camel),
 fmt::arg("LAMBDA", lamda_str));
         } else {
             functions_str += fmt::format(R"({NEW_LINES}{MAYBE_VALID_HOOKS}usertype.set_function("{NAME}",
 {LAMBDA});)",
 fmt::arg("MAYBE_VALID_HOOKS", valid_hook_str),
-fmt::arg("NEW_LINES", "\n\n"),
+fmt::arg("NEW_LINES", iterations > 1 ? "\n\n" : ""),
 fmt::arg("NAME", fn_name_camel),
 fmt::arg("LAMBDA", lamda_str));
         }
@@ -410,8 +397,17 @@ void generate_impl(const quartz::parsed_class& parsed) {
     std::string new_usertype = generate_usertype_str(parsed);
     std::string alloc_str = generate_alloc_str(parsed);
     std::string functions_str = generate_functions_str(parsed);
+    std::string dealloc_str = fmt::format(R"({NEW_LINE}// manual deallocation for `alloc()`
+usertype.set_function("free",
+    []({MAYBE_NAMESPACE_RIGHT}{CLASS}* self) {{
+        delete self;
+    }});)",
+        fmt::arg("NEW_LINE", "\n"),
+        fmt::arg("MAYBE_NAMESPACE_RIGHT", quartz::add_scope_qualifier(parsed.ns, quartz::scope_position::right)),
+        fmt::arg("CLASS", parsed.name));
 
     alloc_str = quartz::indent_lines(alloc_str, 12);
+    dealloc_str = quartz::indent_lines(dealloc_str, 12);
     new_usertype = quartz::indent_lines(new_usertype, 12);
     functions_str = quartz::indent_lines(functions_str, 12);
 
@@ -440,30 +436,17 @@ namespace quartz{MAYBE_NAMESPACE_LEFT} {{
 
                     // this cast is required to access lua field storage
                     auto modifiedSelf = static_cast<{CLASS}Modified*>(self);
-                    if (modifiedSelf->m_fields) {{
-                        auto& luaFields = modifiedSelf->m_fields->m_luaFields;
+                    auto& luaFields = modifiedSelf->m_fields->m_luaFields;
 
-                        if (!luaFields.valid()) {{
-                            // lazily create lua fields on first access
-                            luaFields = lua.create_table();
-                        }}
-
-                        return luaFields;
+                    if (!luaFields.valid()) {{
+                        // lazily create lua fields on first accesss
+                        luaFields = lua.create_table();
                     }}
 
-                    return lua.create_table();
+                    return luaFields;
                 }});
-
-            // manual allocation exposed to lua
-            // returns raw pointer
-            // lua must `free()` and `obj = nil` after use
-{ALLOC}
-
-            // manual deallocation for `alloc()`
-            usertype.set_function("free",
-                []({MAYBE_NAMESPACE_RIGHT}{CLASS}* self) {{
-                    delete self;
-                }});{FUNCTIONS}
+{ALLOC}{DEALLOC}{MAYBE_NEW_LINE}
+{FUNCTIONS}
         }});
 }}
 
@@ -474,6 +457,8 @@ fmt::arg("MAYBE_NAMESPACE_LEFT", is_namespace_empty ? "" : quartz::add_scope_qua
 fmt::arg("NEW_USERTYPE", new_usertype),
 fmt::arg("MAYBE_NAMESPACE_RIGHT", is_namespace_empty ? "" : quartz::add_scope_qualifier(parsed.ns, quartz::scope_position::right)),
 fmt::arg("ALLOC", alloc_str),
+fmt::arg("DEALLOC", alloc_str.empty() ? "" : dealloc_str),
+fmt::arg("MAYBE_NEW_LINE", alloc_str.empty() ? "" : "\n"),
 fmt::arg("FUNCTIONS", functions_str));
 
     created_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);

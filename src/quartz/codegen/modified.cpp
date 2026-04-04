@@ -111,7 +111,7 @@ namespace quartz{MAYBE_NAMESPACE_LEFT} {{
 
 struct {CLASS}Modified : geode::Modify<{CLASS}Modified, {MAYBE_NAMESPACE_RIGHT}{CLASS}>, quartz::LuaFields {{
 {DECLARED_FUNCTIONS}
-}}
+}};
 
 }} // namespace quartz{MAYBE_NAMESPACE_LEFT})",
 fmt::arg("MAYBE_NAMESPACE_LEFT", quartz::add_scope_qualifier(parsed.ns, quartz::scope_position::left)),
@@ -225,12 +225,16 @@ void generate_impl(const quartz::parsed_class& parsed) {
                 }
             }
 
-            std::string fn_inner_content = fmt::format(R"(static_cast<{MAYBE_NAMESPACE}{CLASS}*>(this),
-{ORIGINAL_FUNCTION}{MAYBE_ARGS_FORWARD})",
-fmt::arg("MAYBE_NAMESPACE", quartz::add_scope_qualifier(parsed.ns, quartz::scope_position::right)),
-fmt::arg("CLASS", parsed.name),
-fmt::arg("ORIGINAL_FUNCTION", original_fn_str),
-fmt::arg("MAYBE_ARGS_FORWARD", args_forward));
+            std::string casted_self = fmt::format("static_cast<{MAYBE_NAMESPACE}{CLASS}*>(this),\n",
+                fmt::arg("MAYBE_NAMESPACE", quartz::add_scope_qualifier(parsed.ns, quartz::scope_position::right)),
+                fmt::arg("CLASS", parsed.name));
+
+            std::string fn_inner_content = fmt::format("{MAYBE_CASTED_SELF}{ORIGINAL_FUNCTION}{MAYBE_ARGS_FORWARD}",
+                fmt::arg("MAYBE_CASTED_SELF", fn.is_static ? "" : casted_self),
+                fmt::arg("MAYBE_NAMESPACE", quartz::add_scope_qualifier(parsed.ns, quartz::scope_position::right)),
+                fmt::arg("CLASS", parsed.name),
+                fmt::arg("ORIGINAL_FUNCTION", original_fn_str),
+                fmt::arg("MAYBE_ARGS_FORWARD", args_forward));
 
             fn_inner_content = quartz::indent_lines(fn_inner_content, 4);
 

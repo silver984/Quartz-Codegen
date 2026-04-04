@@ -4,5 +4,6 @@
 namespace quartz::modified {
 
 void generate_header(const quartz::parsed_class& parsed);
+void generate_impl(const quartz::parsed_class& parsed);
 
 } // namespace quartz::modified

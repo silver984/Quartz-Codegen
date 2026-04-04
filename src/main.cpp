@@ -41,6 +41,12 @@ int main() {
         } catch (const std::runtime_error& re) {
             throw;
         }
+
+        try {
+            quartz::modified::generate_impl(parsed);
+        } catch (const std::runtime_error& re) {
+            throw;
+        }
     }
 
 	return 0;
